@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"github.com/gogohigher/xzrpc"
-	"github.com/gogohigher/xzrpc/cmd"
+	main2 "github.com/gogohigher/xzrpc/example/registry/server"
 	"log"
 	"sync"
 	"time"
@@ -30,7 +30,7 @@ func main() {
 		go func(i int) {
 			defer wg.Done()
 
-			args := &cmd.Args{
+			args := &main2.Args{
 				A: i,
 				B: i + 1,
 			}

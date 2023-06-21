@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/gogohigher/xzrpc"
-	"github.com/gogohigher/xzrpc/cmd"
+	main2 "github.com/gogohigher/xzrpc/example/registry/server"
 	"log"
 	"net"
 )
@@ -16,7 +16,7 @@ func main() {
 	server := xzrpc.NewServer()
 
 	// 注册服务
-	var arith cmd.Arith
+	var arith main2.Arith
 	if err = server.Register(&arith); err != nil {
 		log.Fatal("xzrpc server | failed to register: ", err)
 	}

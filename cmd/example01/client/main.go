@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/gogohigher/xzrpc"
 	"github.com/gogohigher/xzrpc/codec"
+	"github.com/gogohigher/xzrpc/pkg/traffic"
 	"log"
 	"net"
 	"time"
@@ -23,7 +24,7 @@ func main() {
 	cc := codec.NewGobCodec(conn)
 
 	for i := 0; i < 6; i++ {
-		h := &codec.Header{
+		h := &traffic.Header{
 			ServiceMethod: "Foo.Sum",
 			Seq:           uint64(i),
 		}

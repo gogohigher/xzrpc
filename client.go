@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/gogohigher/xzrpc/codec"
 	_const "github.com/gogohigher/xzrpc/pkg/const"
+	"github.com/gogohigher/xzrpc/pkg/traffic"
 	"io"
 	"log"
 	"net"
@@ -33,7 +34,7 @@ type Call struct {
 type Client struct {
 	cc        codec.Codec
 	option    *Option
-	header    codec.Header
+	header    traffic.Header
 	seq       uint64
 	taskQueue map[uint64]*Call
 	closed    bool
@@ -109,7 +110,6 @@ func DialHTTP(network, address string, opts ...*Option) (client *Client, err err
 	return dialTimeOut(f, network, address, opts...)
 }
 
-
 // DialRPC rpcAddr：格式为 protocol@addr，例如：tcp@127.0.0.1:8081、http@127.0.0.1:8081
 func DialRPC(rpcAddr string, opts ...*Option) (*Client, error) {
 	parts := strings.Split(rpcAddr, "@")
@@ -129,7 +129,6 @@ func DialRPC(rpcAddr string, opts ...*Option) (*Client, error) {
 		return nil, fmt.Errorf("xzrp client | not support %s protocol", protocol)
 	}
 }
-
 
 // 超时：包括 dial + create client
 // 将NewClient操作提到入参，作为函数参数，这样也方便单元测试
@@ -183,7 +182,7 @@ func dialTimeOut(f newClientFunc, network, address string, opts ...*Option) (cli
 func (c *Client) receive() {
 	var err error
 	for err == nil {
-		var h codec.Header
+		var h traffic.Header
 		err = c.cc.ReadHeader(&h)
 		if err != nil {
 			break
@@ -325,14 +324,12 @@ func (c *Client) Close() error {
 	return c.cc.Close()
 }
 
-
 func (c *Client) CheckAvailable() bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	return !c.closed && !c.shutdown
 }
-
 
 func (call *Call) done() {
 	call.Done <- call

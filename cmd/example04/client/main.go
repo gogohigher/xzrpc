@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"github.com/gogohigher/xzrpc"
-	"github.com/gogohigher/xzrpc/cmd"
+	main2 "github.com/gogohigher/xzrpc/example/registry/server"
 	"log"
 	"sync"
 	"time"
@@ -21,7 +21,7 @@ func call(addr1, addr2 string) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			args := &cmd.Args{
+			args := &main2.Args{
 				A: i,
 				B: i + 1,
 			}
@@ -43,7 +43,7 @@ func broadcast(addr1, addr2 string) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			args := &cmd.Args{
+			args := &main2.Args{
 				A: i,
 				B: i + 1,
 			}
@@ -57,7 +57,7 @@ func broadcast(addr1, addr2 string) {
 	wg.Wait()
 }
 
-func arith(ctx context.Context, xzc *xzrpc.XZClient, action, serviceMethod string, args *cmd.Args) {
+func arith(ctx context.Context, xzc *xzrpc.XZClient, action, serviceMethod string, args *main2.Args) {
 	var reply int
 	var err error
 

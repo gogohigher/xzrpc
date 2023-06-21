@@ -9,6 +9,11 @@ import (
 	"time"
 )
 
+func main() {
+	registryAddr := "http://127.0.0.1:9999/_xzrpc_/registry"
+	call(registryAddr)
+}
+
 func call(registry string) {
 	//d := xzrpc.NewDefaultDiscovery([]string{"tcp@" + addr1, "tcp@" + addr2})
 
@@ -77,23 +82,5 @@ func arith(ctx context.Context, xzc *xzrpc.XZClient, action, serviceMethod strin
 	} else {
 		log.Printf("%s %s success: %d * %d = %d", action, serviceMethod, args.A, args.B, reply)
 	}
-
-}
-
-// TODO 负载均衡测试
-
-func main() {
-	//addr1 := "127.0.0.1:8081"
-	//addr2 := "127.0.0.1:8082"
-	// TODO 丢数据了，循环6次，但是只打印了5次
-	//call(addr1, addr2)
-
-	// TODO 同样存在问题，而且还遇到死锁
-	//broadcast(addr1, addr2)
-
-	registryAddr := "http://127.0.0.1:9999/_xzrpc_/registry"
-	call(registryAddr)
-
-	//broadcast(registryAddr)
 
 }
