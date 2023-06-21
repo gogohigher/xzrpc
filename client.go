@@ -182,19 +182,19 @@ func dialTimeOut(f newClientFunc, network, address string, opts ...*Option) (cli
 func (c *Client) receive() {
 	var err error
 	for err == nil {
-		var h traffic.Header
-		err = c.cc.ReadHeader(&h)
+		var h = traffic.NewEmptyHeader()
+		err = c.cc.ReadHeader(h)
 		if err != nil {
 			break
 		}
 		// call存在
-		call := c.removeCall(h.Seq)
+		call := c.removeCall(h.GetSeq())
 		switch {
 		case call == nil:
 			// @xz 没看懂
 			err = c.cc.ReadBody(nil)
-		case h.Error != "":
-			call.Error = fmt.Errorf(h.Error)
+		case h.GetErr() != "":
+			call.Error = fmt.Errorf(h.GetErr())
 			err = c.cc.ReadBody(nil)
 			call.done()
 
@@ -223,12 +223,14 @@ func (c *Client) send(call *Call) {
 	}
 
 	// prepare req header
-	c.header.ServiceMethod = call.ServiceMethod
-	c.header.Seq = seq
-	c.header.Error = ""
+	//c.header.ServiceMethod = call.ServiceMethod
+	//c.header.Seq = seq
+	//c.header.Error = ""
+
+	c.header = traffic.NewHeader(call.ServiceMethod, seq)
 
 	// send req with encode
-	err = c.cc.Write(&c.header, call.Args)
+	err = c.cc.Write(c.header, call.Args)
 	if err != nil {
 		_ = c.removeCall(seq)
 		// @xz removeCall会为空吗？

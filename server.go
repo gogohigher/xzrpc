@@ -79,7 +79,8 @@ func (s *Server) HandleCodec(cc codec.Codec) {
 			if req == nil {
 				break
 			}
-			req.header.Error = err.Error()
+
+			req.header.SetErr(err.Error())
 			s.sendResp(cc, req.header, EmptyData, sending)
 			continue
 		}
@@ -92,7 +93,7 @@ func (s *Server) HandleCodec(cc codec.Codec) {
 }
 
 type request struct {
-	header      *traffic.Header
+	header      traffic.Header
 	args, reply reflect.Value
 
 	srv   *service
@@ -101,14 +102,14 @@ type request struct {
 
 func (s *Server) readRequest(cc codec.Codec) (*request, error) {
 	// 1. read header
-	var h traffic.Header
-	if err := cc.ReadHeader(&h); err != nil {
+	var h = traffic.NewEmptyHeader()
+	if err := cc.ReadHeader(h); err != nil {
 		fmt.Println("failed to ReadHeader: ", err)
 		return nil, err
 	}
-	req := &request{header: &h}
+	req := &request{header: h}
 	//req.args = reflect.New(reflect.TypeOf(""))
-	srv, mType, err := s.findService(h.ServiceMethod)
+	srv, mType, err := s.findService(h.GetServiceMethod())
 	if err != nil {
 		log.Println("xzrpc server | readRequest | failed to findService: ", err)
 		return req, err
@@ -145,7 +146,7 @@ func (s *Server) handleRequest(cc codec.Codec, req *request, sending *sync.Mutex
 	// 调用真正方法
 	err := req.srv.call(req.mType, req.args, req.reply)
 	if err != nil {
-		req.header.Error = err.Error()
+		req.header.SetErr(err.Error())
 		// 发送一个空结构体
 		s.sendResp(cc, req.header, struct{}{}, sending)
 		return
@@ -155,7 +156,7 @@ func (s *Server) handleRequest(cc codec.Codec, req *request, sending *sync.Mutex
 
 }
 
-func (s *Server) sendResp(cc codec.Codec, header *traffic.Header, body interface{}, sending *sync.Mutex) {
+func (s *Server) sendResp(cc codec.Codec, header traffic.Header, body interface{}, sending *sync.Mutex) {
 	// 有序发送
 	sending.Lock()
 	defer sending.Unlock()
