@@ -1,7 +1,24 @@
 package traffic
 
+var _ Message = (*message)(nil)
 var _ Header = (*header)(nil)
 
+// Message --- start ---
+type Message interface {
+}
+
+type message struct {
+	header Header
+	body   interface{}
+}
+
+func NewMessage() Message {
+	return &message{}
+}
+
+// Message --- end ---
+
+// Header --- start ---
 type Header interface {
 	GetSeq() uint64
 	GetErr() string
@@ -42,3 +59,5 @@ func (h *header) GetServiceMethod() string {
 func (h *header) SetErr(err string) {
 	h.Err = err
 }
+
+// Header --- end ---
