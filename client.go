@@ -7,8 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gogohigher/xzrpc/codec"
+	"github.com/gogohigher/xzrpc/pkg/codec2"
 	_const "github.com/gogohigher/xzrpc/pkg/const"
 	"github.com/gogohigher/xzrpc/pkg/traffic"
+	"github.com/gogohigher/xzrpc/protocol/raw"
 	"io"
 	"log"
 	"net"
@@ -32,15 +34,17 @@ type Call struct {
 
 // Client xzrpc client
 type Client struct {
-	cc        codec.Codec
-	option    *Option
-	header    traffic.Header
+	cc     codec.Codec // @xz 这个可以删除
+	option *Option
+	//header    traffic.Header
 	seq       uint64
 	taskQueue map[uint64]*Call
 	closed    bool
 	shutdown  bool // @xz 和close含义有点区别
-	sendMu    sync.Mutex
-	mu        sync.Mutex
+	conn      io.ReadWriteCloser
+
+	sendMu sync.Mutex
+	mu     sync.Mutex
 }
 
 type createClientResult struct {
@@ -73,6 +77,7 @@ func NewClient(conn net.Conn, option *Option) (*Client, error) {
 		cc:        f(conn),
 		option:    option,
 		taskQueue: make(map[uint64]*Call),
+		conn:      conn,
 	}
 
 	// 4. 接口响应
@@ -181,30 +186,61 @@ func dialTimeOut(f newClientFunc, network, address string, opts ...*Option) (cli
 // 3. call存在，服务端处理正常
 func (c *Client) receive() {
 	var err error
+	var call *Call
 	for err == nil {
-		var h = traffic.NewEmptyHeader()
-		err = c.cc.ReadHeader(h)
-		if err != nil {
-			break
-		}
-		// call存在
-		call := c.removeCall(uint64(h.GetSeq()))
-		switch {
-		case call == nil:
-			// @xz 没看懂
-			err = c.cc.ReadBody(nil)
-		case h.GetErr() != "":
-			call.Error = fmt.Errorf(h.GetErr())
-			err = c.cc.ReadBody(nil)
-			call.done()
+		//var h = traffic.NewEmptyHeader()
+		//err = c.cc.ReadHeader(h)
 
-		default:
-			err = c.cc.ReadBody(call.Reply)
-			if err != nil {
-				call.Error = errors.New("read body " + err.Error())
+		msg := traffic.NewMessage()
+		rawProtocol := raw.NewRawProtocol(c.conn)
+		err = rawProtocol.UnPack(msg, func(header traffic.Header) error {
+
+			call = c.removeCall(uint64(header.GetSeq()))
+			switch {
+			case call == nil:
+				// @xz 没看懂
+				msg.SetBody(nil)
+			case header.GetErr() != "":
+				call.Error = fmt.Errorf(header.GetErr())
+				msg.SetBody(nil)
+				call.done()
+
+			default:
+				msg.SetBody(call.Reply) // 设置一下，其实可以理解成初始化
+				//err = c.cc.ReadBody(call.Reply)
+				//if err != nil {
+				//	call.Error = errors.New("read body " + err.Error())
+				//}
+				//call.done()
 			}
+			return nil
+		})
+
+		if call != nil {
 			call.done()
 		}
+
+		//if err != nil {
+		//	break
+		//}
+		// call存在
+		//call := c.removeCall(uint64(h.GetSeq()))
+		//switch {
+		//case call == nil:
+		//	// @xz 没看懂
+		//	err = c.cc.ReadBody(nil)
+		//case h.GetErr() != "":
+		//	call.Error = fmt.Errorf(h.GetErr())
+		//	err = c.cc.ReadBody(nil)
+		//	call.done()
+		//
+		//default:
+		//	err = c.cc.ReadBody(call.Reply)
+		//	if err != nil {
+		//		call.Error = errors.New("read body " + err.Error())
+		//	}
+		//	call.done()
+		//}
 	}
 	c.terminateCalls(err)
 }
@@ -227,11 +263,23 @@ func (c *Client) send(call *Call) {
 	//c.header.Seq = seq
 	//c.header.Error = ""
 
-	c.header = traffic.NewHeader(call.ServiceMethod, int32(seq))
+	//c.header = traffic.NewHeader(call.ServiceMethod, int32(seq))
 
-	// TODO @xz 这里替换
+	h := traffic.NewHeader(call.ServiceMethod, int32(seq))
+
+	rawProtocol := raw.NewRawProtocol(c.conn)
+	// 构造消息
+	msg := traffic.NewMessage()
+	msg.SetHeader(h)
+	msg.SetBody(call.Args)
+	msg.SetAction(traffic.CALL)
+	msg.SetCodec(codec2.JSON_CODEC)
+
+	err = rawProtocol.Pack(msg)
+
 	// send req with encode
-	err = c.cc.Write(c.header, call.Args)
+	//err = c.cc.Write(c.header, call.Args)
+
 	if err != nil {
 		_ = c.removeCall(seq)
 		// @xz removeCall会为空吗？

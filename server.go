@@ -5,8 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gogohigher/xzrpc/codec"
+	"github.com/gogohigher/xzrpc/pkg/codec2"
 	_const "github.com/gogohigher/xzrpc/pkg/const"
+	"github.com/gogohigher/xzrpc/pkg/protocol"
 	"github.com/gogohigher/xzrpc/pkg/traffic"
+	"github.com/gogohigher/xzrpc/protocol/raw"
 	"io"
 	"log"
 	"net"
@@ -63,81 +66,112 @@ func (s *Server) HandleConn(conn io.ReadWriteCloser) {
 		return
 	}
 
-	s.HandleCodec(codecFunc(conn))
+	rawProtocol := raw.NewRawProtocol(conn)
+	s.HandleCodec(codecFunc(conn), rawProtocol)
 }
 
 var EmptyData = struct{}{}
 
 // 根据编解码器处理数据
 // 并发处理请求，有序返回数据
-func (s *Server) HandleCodec(cc codec.Codec) {
+func (s *Server) HandleCodec(cc codec.Codec, rawProtocol protocol.Protocol) {
 	sending := new(sync.Mutex)
 	wg := new(sync.WaitGroup)
 	for {
-		req, err := s.readRequest(cc)
+		req, err := s.readRequest(cc, rawProtocol)
 		if err != nil {
 			if req == nil {
 				break
 			}
 
-			req.header.SetErr(err.Error())
-			s.sendResp(cc, req.header, EmptyData, sending)
+			req.message.Header().SetErr(err.Error())
+			s.sendResp(cc, req.message.Header(), EmptyData, sending, rawProtocol)
 			continue
 		}
 		// 并发处理
 		wg.Add(1)
-		go s.handleRequest(cc, req, sending, wg)
+		go s.handleRequest(cc, req, sending, wg, rawProtocol)
 	}
 	wg.Wait()
 	_ = cc.Close()
 }
 
 type request struct {
-	header      traffic.Header
+	message traffic.Message
+	//header      traffic.Header
 	args, reply reflect.Value
 
 	srv   *service
 	mType *methodType
 }
 
-func (s *Server) readRequest(cc codec.Codec) (*request, error) {
+func (s *Server) readRequest(cc codec.Codec, rawProtocol protocol.Protocol) (*request, error) {
 	// 1. read header
-	var h = traffic.NewEmptyHeader()
-	if err := cc.ReadHeader(h); err != nil {
-		fmt.Println("failed to ReadHeader: ", err)
+	//var h = traffic.NewEmptyHeader()
+
+	req := &request{}
+
+	msg := traffic.NewMessage()
+	req.message = msg
+
+	err := rawProtocol.UnPack(msg, func(header traffic.Header) error {
+		srv, mType, err := s.findService(header.GetServiceMethod())
+		if err != nil {
+			log.Println("xzrpc server | readRequest | failed to findService: ", err)
+			return err
+		}
+		req.srv = srv
+		req.mType = mType
+		req.args = req.mType.newArgValue()
+		req.reply = req.mType.newReplyValue()
+		args := req.args.Interface()
+		if req.args.Kind() != reflect.Pointer {
+			args = req.args.Addr().Interface()
+		}
+		msg.SetBody(args)
+		return nil
+	})
+
+	if err != nil {
 		return nil, err
 	}
-	req := &request{header: h}
-	//req.args = reflect.New(reflect.TypeOf(""))
-	srv, mType, err := s.findService(h.GetServiceMethod())
-	if err != nil {
-		log.Println("xzrpc server | readRequest | failed to findService: ", err)
-		return req, err
-	}
-	req.srv = srv
-	req.mType = mType
+	return req, err
 
-	req.args = req.mType.newArgValue()
-	req.reply = req.mType.newReplyValue()
-
-	// @xz req.args可能是值类型，也可能是指针类型
-	args := req.args.Interface()
-	if req.args.Kind() != reflect.Pointer {
-		args = req.args.Addr().Interface()
-	}
-
-	// 2. read body，ReadBody的参数必须是指针类型，因此上述需要对req.args做判断
-	if err := cc.ReadBody(args); err != nil {
-		log.Println("xzrpc server | readRequest | failed to ReadBody: ", err)
-		return req, err
-	}
-	// 3. header成功，但是body失败了，也返回
-	return req, nil
+	//if err := cc.ReadHeader(h); err != nil {
+	//	fmt.Println("failed to ReadHeader: ", err)
+	//	return nil, err
+	//}
+	//req := &request{header: h}
+	////req.args = reflect.New(reflect.TypeOf(""))
+	//srv, mType, err := s.findService(h.GetServiceMethod())
+	//if err != nil {
+	//	log.Println("xzrpc server | readRequest | failed to findService: ", err)
+	//	return req, err
+	//}
+	//req.srv = srv
+	//req.mType = mType
+	//
+	//req.args = req.mType.newArgValue()
+	//req.reply = req.mType.newReplyValue()
+	//
+	//// @xz req.args可能是值类型，也可能是指针类型
+	//args := req.args.Interface()
+	//if req.args.Kind() != reflect.Pointer {
+	//	args = req.args.Addr().Interface()
+	//}
+	//
+	//// 2. read body，ReadBody的参数必须是指针类型，因此上述需要对req.args做判断
+	//if err := cc.ReadBody(args); err != nil {
+	//	log.Println("xzrpc server | readRequest | failed to ReadBody: ", err)
+	//	return req, err
+	//}
+	//// 3. header成功，但是body失败了，也返回
+	//return req, nil
 }
 
 // TODO wg是不是可以绑定到Server中，作为它的属性
 // TODO 服务端处理超时
-func (s *Server) handleRequest(cc codec.Codec, req *request, sending *sync.Mutex, wg *sync.WaitGroup) {
+func (s *Server) handleRequest(cc codec.Codec, req *request, sending *sync.Mutex, wg *sync.WaitGroup, rawProtocol protocol.Protocol) {
 	defer wg.Done()
 
 	//log.Println("server.handleRequest | ", req.header, req.args.Elem())
@@ -146,21 +180,34 @@ func (s *Server) handleRequest(cc codec.Codec, req *request, sending *sync.Mutex
 	// 调用真正方法
 	err := req.srv.call(req.mType, req.args, req.reply)
 	if err != nil {
-		req.header.SetErr(err.Error())
+		req.message.Header().SetErr(err.Error())
+
 		// 发送一个空结构体
-		s.sendResp(cc, req.header, struct{}{}, sending)
+		s.sendResp(cc, req.message.Header(), struct{}{}, sending, rawProtocol)
 		return
 	}
 
-	s.sendResp(cc, req.header, req.reply.Interface(), sending)
+	s.sendResp(cc, req.message.Header(), req.reply.Interface(), sending, rawProtocol)
 
 }
 
-func (s *Server) sendResp(cc codec.Codec, header traffic.Header, body interface{}, sending *sync.Mutex) {
+func (s *Server) sendResp(cc codec.Codec, header traffic.Header, body interface{}, sending *sync.Mutex, rawProtocol protocol.Protocol) {
 	// 有序发送
 	sending.Lock()
 	defer sending.Unlock()
-	if err := cc.Write(header, body); err != nil {
+
+	// 改成raw-protocol
+	//if err := cc.Write(header, body); err != nil {
+	//	log.Println("failed to write resp: ", err)
+	//}
+
+	msg := traffic.NewMessage()
+	msg.SetHeader(header)
+	msg.SetBody(body)
+	msg.SetAction(traffic.CALL) // TODO 这里要改成REPLY吗？需要定义一下CALL、REPLY等等
+	msg.SetCodec(codec2.JSON_CODEC)
+
+	if err := rawProtocol.Pack(msg); err != nil {
 		log.Println("failed to write resp: ", err)
 	}
 }

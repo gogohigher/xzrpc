@@ -19,7 +19,6 @@ type GobCodec struct {
 	decoder *gob.Decoder
 }
 
-// NewGobCodec 创建GobCodec对象
 func NewGobCodec(conn io.ReadWriteCloser) Codec {
 	buf := bufio.NewWriter(conn)
 	return &GobCodec{

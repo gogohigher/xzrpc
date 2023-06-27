@@ -19,6 +19,7 @@ type Message interface {
 	MarshalBody() ([]byte, error)
 	UnMarshalBody(b []byte) error
 	SetHeader(h Header)
+	Header() Header
 	SetBody(b interface{})
 }
 
@@ -81,6 +82,10 @@ func (m *message) UnMarshalBody(b []byte) error {
 
 func (m *message) SetHeader(h Header) {
 	m.header = h
+}
+
+func (m *message) Header() Header {
+	return m.header
 }
 
 func (m *message) SetBody(b interface{}) {

@@ -136,7 +136,7 @@ func (raw *rawProtocol) WriteBody(buf *xzbufio.Writer, msg traffic.Message) erro
 // UnPack 拆包，从connection中读取消息，读到message中
 // 1. 根据前4位，获取到整个byte数组的大小
 // 2. 根据大小，创建byte数组，然后将所有数据读到这个byte数组中
-func (raw *rawProtocol) UnPack(msg traffic.Message) error {
+func (raw *rawProtocol) UnPack(msg traffic.Message, f func(header traffic.Header) error) error {
 	raw.mu.Lock()
 	defer raw.mu.Unlock()
 
@@ -165,6 +165,14 @@ func (raw *rawProtocol) UnPack(msg traffic.Message) error {
 		log.Println("raw-protocol | UnPack | failed to ReadHeader: ", err)
 		return err
 	}
+	if f != nil {
+		if err := f(msg.Header()); err != nil {
+			return err
+		}
+
+	}
+	// TODO 这里需要处理body的类型
+	// 外部解决
 	if err := raw.ReadBody(data, msg); err != nil {
 		log.Println("raw-protocol | UnPack | failed to ReadBody: ", err)
 		return err

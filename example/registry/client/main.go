@@ -25,7 +25,7 @@ func call(registry string) {
 	}()
 
 	var wg sync.WaitGroup
-	for i := 0; i < 6; i++ {
+	for i := 1; i < 10; i++ { // TODO 暂时只调用一次
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
