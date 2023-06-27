@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/gob"
 	"fmt"
+	"github.com/gogohigher/xzrpc/pkg/traffic"
 	"io"
 )
 
@@ -18,7 +19,6 @@ type GobCodec struct {
 	decoder *gob.Decoder
 }
 
-// NewGobCodec 创建GobCodec对象
 func NewGobCodec(conn io.ReadWriteCloser) Codec {
 	buf := bufio.NewWriter(conn)
 	return &GobCodec{
@@ -29,7 +29,7 @@ func NewGobCodec(conn io.ReadWriteCloser) Codec {
 	}
 }
 
-func (gc *GobCodec) ReadHeader(header *Header) error {
+func (gc *GobCodec) ReadHeader(header traffic.Header) error {
 
 	return gc.decoder.Decode(header)
 }
@@ -39,7 +39,7 @@ func (gc *GobCodec) ReadBody(body interface{}) error {
 }
 
 // 1. 先encode header；2. 再encode body
-func (gc *GobCodec) Write(header *Header, body interface{}) (err error) {
+func (gc *GobCodec) Write(header traffic.Header, body interface{}) (err error) {
 	defer func() {
 		_ = gc.buf.Flush() // buf在NewEncoder的时候，作为传输传入
 		if err != nil {
@@ -51,7 +51,7 @@ func (gc *GobCodec) Write(header *Header, body interface{}) (err error) {
 		return err
 	}
 	if err := gc.encoder.Encode(body); err != nil {
-		fmt.Println("failed to encode header: ", err)
+		fmt.Println("failed to encode body: ", err)
 		return err
 	}
 	return nil
