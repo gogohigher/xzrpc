@@ -188,7 +188,7 @@ func (c *Client) receive() {
 			break
 		}
 		// call存在
-		call := c.removeCall(h.GetSeq())
+		call := c.removeCall(uint64(h.GetSeq()))
 		switch {
 		case call == nil:
 			// @xz 没看懂
@@ -227,8 +227,9 @@ func (c *Client) send(call *Call) {
 	//c.header.Seq = seq
 	//c.header.Error = ""
 
-	c.header = traffic.NewHeader(call.ServiceMethod, seq)
+	c.header = traffic.NewHeader(call.ServiceMethod, int32(seq))
 
+	// TODO @xz 这里替换
 	// send req with encode
 	err = c.cc.Write(c.header, call.Args)
 	if err != nil {

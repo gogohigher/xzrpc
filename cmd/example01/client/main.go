@@ -28,7 +28,7 @@ func main() {
 		//	ServiceMethod: "Foo.Sum",
 		//	Seq:           uint64(i),
 		//}
-		h := traffic.NewHeader("Foo.Sum", uint64(i))
+		h := traffic.NewHeader("Foo.Sum", int32(i))
 		// 写数据到服务端
 		_ = cc.Write(h, fmt.Sprintf("xzrpc req %d", h.GetSeq()))
 

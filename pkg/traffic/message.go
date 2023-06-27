@@ -67,7 +67,7 @@ func (m *message) MarshalBody() ([]byte, error) {
 }
 
 func (m *message) UnMarshalBody(b []byte) error {
-	// TODO 暂时将body定位string类型 !!!
+	// TODO 暂时将body定位string类型 !!! 单元测试的时候，没有注册方法
 	if m.body == nil {
 		m.body = new(string)
 	}
