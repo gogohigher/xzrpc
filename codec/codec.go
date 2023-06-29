@@ -25,6 +25,6 @@ type NewCodecFunc func(closer io.ReadWriteCloser) Codec
 var NewCodecFuncMap map[Type]NewCodecFunc
 
 func init() {
-	NewCodecFuncMap = make(map[Type]NewCodecFunc)
-	NewCodecFuncMap[GobType] = NewGobCodec
+	//NewCodecFuncMap = make(map[Type]NewCodecFunc)
+	//NewCodecFuncMap[GobType] = NewGobCodec
 }

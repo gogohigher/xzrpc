@@ -1,7 +1,6 @@
 package xzrpc
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/gogohigher/xzrpc/codec"
@@ -47,27 +46,27 @@ func (s *Server) Accept(listener net.Listener) {
 // 首先使用 json.NewDecoder 反序列化得到 Option 实例，检查 MagicNumber 和 CodeType 的值是否正确。
 // 然后根据 CodeType 得到对应的消息编解码器，接下来的处理交给 serverCodec。
 func (s *Server) HandleConn(conn io.ReadWriteCloser) {
-	var option Option
-	err := json.NewDecoder(conn).Decode(&option)
-	if err != nil {
-		log.Println("failed to decode json: ", err)
-		return
-	}
-	log.Printf("HandleConn option: %+v\n", option)
+	//var option Option
+	//err := json.NewDecoder(conn).Decode(&option)
+	//if err != nil {
+	//	log.Println("failed to decode json: ", err)
+	//	return
+	//}
+	//log.Printf("HandleConn option: %+v\n", option)
 
-	if option.Magic != Magic {
-		log.Printf("valid magic number: %v\n", option.Magic)
-		return
-	}
+	//if option.Magic != Magic {
+	//	log.Printf("valid magic number: %v\n", option.Magic)
+	//	return
+	//}
 
-	codecFunc, ok := codec.NewCodecFuncMap[option.CodecType]
-	if !ok {
-		log.Printf("failed to find %v CodecType\n", option.CodecType)
-		return
-	}
+	//codecFunc, ok := codec.NewCodecFuncMap[option.CodecType]
+	//if !ok {
+	//	log.Printf("failed to find %v CodecType\n", option.CodecType)
+	//	return
+	//}
 
 	rawProtocol := raw.NewRawProtocol(conn)
-	s.HandleCodec(codecFunc(conn), rawProtocol)
+	s.HandleCodec(nil, rawProtocol)
 }
 
 var EmptyData = struct{}{}
@@ -93,7 +92,7 @@ func (s *Server) HandleCodec(cc codec.Codec, rawProtocol protocol.Protocol) {
 		go s.handleRequest(cc, req, sending, wg, rawProtocol)
 	}
 	wg.Wait()
-	_ = cc.Close()
+	//_ = cc.Close()
 }
 
 type request struct {

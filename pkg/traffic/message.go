@@ -21,6 +21,7 @@ type Message interface {
 	SetHeader(h Header)
 	Header() Header
 	SetBody(b interface{})
+	Body() any
 }
 
 type message struct {
@@ -90,6 +91,10 @@ func (m *message) Header() Header {
 
 func (m *message) SetBody(b interface{}) {
 	m.body = b
+}
+
+func (m *message) Body() any {
+	return m.body
 }
 
 // Message --- end ---

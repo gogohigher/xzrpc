@@ -7,9 +7,9 @@ type Protocol interface {
 	// 协议内容
 	GetContent() *Content
 	// 封包，即将message写入connection
-	Pack(traffic.Message) error
+	Pack(msg traffic.Message) error
 	// 拆包，从connection中读取消息，读到message中
-	UnPack(traffic.Message, func(header traffic.Header) error) error
+	UnPack(msg traffic.Message, f func(header traffic.Header) error) error
 }
 
 // Content 协议内容

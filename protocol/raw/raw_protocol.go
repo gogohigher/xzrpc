@@ -59,7 +59,7 @@ func (raw *rawProtocol) GetContent() *protocol.Content {
 	return c
 }
 
-// Pack 封包，即将message写入connection
+// 封包，即将message写入connection
 func (raw *rawProtocol) Pack(msg traffic.Message) error {
 	// TODO 使用sync.Pool进行优化；缓冲区大小取什么值比较好？
 	//buf := make([]byte, 0, 4096)

@@ -56,7 +56,7 @@ func startServer() {
 	rawProtocol := NewRawProtocol(conn)
 
 	msg := traffic.NewMessage()
-	err = rawProtocol.UnPack(msg)
+	err = rawProtocol.UnPack(msg, nil)
 	if err != nil {
 		log.Println("TestPack UnPack err: ", err)
 		return
