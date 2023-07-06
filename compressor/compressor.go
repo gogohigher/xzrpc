@@ -3,10 +3,12 @@ package compressor
 const (
 	NOCompressor = iota
 	Gzip
+	Snappy
 )
 
 var Compressors = map[byte]Compressor{
-	Gzip: &GzipCompressor{},
+	Gzip:   &GzipCompressor{},
+	Snappy: &SnappyCompressor{},
 }
 
 type Compressor interface {
