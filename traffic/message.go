@@ -3,10 +3,14 @@ package traffic
 import (
 	"fmt"
 	codec22 "github.com/gogohigher/xzrpc/codec2"
+	"sync"
 )
 
-var _ Message = (*message)(nil)
-var _ Header = (*header)(nil)
+var (
+	_           Message = (*message)(nil)
+	_           Header  = (*header)(nil)
+	MessagePool sync.Pool
+)
 
 // Message --- start ---
 type Message interface {
@@ -24,6 +28,7 @@ type Message interface {
 	Body() any
 	SetCompressor(compressType byte)
 	Compressor() byte
+	ResetMessage()
 }
 
 type message struct {
@@ -32,6 +37,12 @@ type message struct {
 	action       byte
 	codec        byte
 	compressType byte // 压缩算法
+}
+
+func init() {
+	MessagePool = sync.Pool{New: func() any {
+		return NewMessage()
+	}}
 }
 
 func NewMessage() Message {
@@ -108,4 +119,10 @@ func (m *message) Compressor() byte {
 	return m.compressType
 }
 
-// Message --- end ---
+func (m *message) ResetMessage() {
+	m.header = nil
+	m.body = nil
+	m.action = 0
+	m.codec = 0
+	m.compressType = 0
+}

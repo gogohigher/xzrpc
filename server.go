@@ -31,7 +31,7 @@ func NewServer() *Server {
 	return &Server{}
 }
 
-// TODO-这里可以优化的，看下xzlink
+// Accept TODO-这里可以优化的，看下xzlink
 func (s *Server) Accept(listener net.Listener) {
 	for {
 		conn, err := listener.Accept()
@@ -44,7 +44,7 @@ func (s *Server) Accept(listener net.Listener) {
 	}
 }
 
-// 首先使用 json.NewDecoder 反序列化得到 Option 实例，检查 MagicNumber 和 CodeType 的值是否正确。
+// HandleConn 首先使用 json.NewDecoder 反序列化得到 Option 实例，检查 MagicNumber 和 CodeType 的值是否正确。
 // 然后根据 CodeType 得到对应的消息编解码器，接下来的处理交给 serverCodec。
 func (s *Server) HandleConn(conn io.ReadWriteCloser) {
 	//var option Option
@@ -72,7 +72,7 @@ func (s *Server) HandleConn(conn io.ReadWriteCloser) {
 
 var EmptyData = struct{}{}
 
-// 根据编解码器处理数据
+// HandleCodec 根据编解码器处理数据
 // 并发处理请求，有序返回数据
 func (s *Server) HandleCodec(cc codec.Codec, rawProtocol protocol.Protocol) {
 	sending := new(sync.Mutex)
@@ -97,8 +97,7 @@ func (s *Server) HandleCodec(cc codec.Codec, rawProtocol protocol.Protocol) {
 }
 
 type request struct {
-	message traffic.Message
-	//header      traffic.Header
+	message     traffic.Message
 	args, reply reflect.Value
 
 	srv   *service
@@ -107,8 +106,6 @@ type request struct {
 
 func (s *Server) readRequest(cc codec.Codec, rawProtocol protocol.Protocol) (*request, error) {
 	// 1. read header
-	//var h = traffic.NewEmptyHeader()
-
 	req := &request{}
 
 	msg := traffic.NewMessage()
@@ -196,12 +193,12 @@ func (s *Server) sendResp(cc codec.Codec, header traffic.Header, body interface{
 	sending.Lock()
 	defer sending.Unlock()
 
-	// 改成raw-protocol
-	//if err := cc.Write(header, body); err != nil {
-	//	log.Println("failed to write resp: ", err)
-	//}
+	msg := traffic.MessagePool.Get().(traffic.Message)
+	defer func() {
+		msg.ResetMessage()
+		traffic.MessagePool.Put(msg)
+	}()
 
-	msg := traffic.NewMessage()
 	msg.SetHeader(header)
 	msg.SetBody(body)
 	msg.SetAction(traffic.CALL) // TODO 这里要改成REPLY吗？需要定义一下CALL、REPLY等等

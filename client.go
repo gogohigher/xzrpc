@@ -259,18 +259,16 @@ func (c *Client) send(call *Call) {
 		return
 	}
 
-	// prepare req header
-	//c.header.ServiceMethod = call.ServiceMethod
-	//c.header.Seq = seq
-	//c.header.Error = ""
-
-	//c.header = traffic.NewHeader(call.ServiceMethod, int32(seq))
-
 	h := traffic.NewHeader(call.ServiceMethod, int32(seq))
 
 	rawProtocol := raw.NewRawProtocol(c.conn)
 	// 构造消息
-	msg := traffic.NewMessage()
+	msg := traffic.MessagePool.Get().(traffic.Message)
+	defer func() {
+		msg.ResetMessage()
+		traffic.MessagePool.Put(msg)
+	}()
+
 	msg.SetHeader(h)
 	msg.SetBody(call.Args)
 	msg.SetAction(traffic.CALL)
@@ -278,10 +276,6 @@ func (c *Client) send(call *Call) {
 	msg.SetCompressor(compressor.Gzip)
 
 	err = rawProtocol.Pack(msg)
-
-	// send req with encode
-	//err = c.cc.Write(c.header, call.Args)
-
 	if err != nil {
 		_ = c.removeCall(seq)
 		// @xz removeCall会为空吗？
