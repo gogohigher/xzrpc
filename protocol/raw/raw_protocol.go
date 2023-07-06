@@ -18,12 +18,21 @@ package raw
    +----------------------------------------------------------------------------------------------------------------------------------------+
    | 占4个字节 		| 占1个字节 	| 占1个字节 		| xxx 		| 占1个字节 	| 占1个字节 			| xxx 					| 占1个字节 		| xxx 	|
    +----------------+-----------+---------------+-----------+-----------+-------------------+-----------------------+---------------+-------+
+
+
+	raw_protocol对应的消息格式如下：
+   +----------------+-----------+---------------+---------------+-----------+-----------+-------------------+-----------------------+---------------+-------+
+   | message length | 协议Id 	|	Compressor	| 消息序列号长度 	| 序列号内容 	| 消息类型 	| serviceMethod 长度 | serviceMethod 内容 	| body codec id | body  |
+   +--------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | 占4个字节 		| 占1个字节 	|	占1个字节		| 占1个字节 		| xxx 		| 占1个字节 	| 占1个字节 			| xxx 					| 占1个字节 		| xxx 	|
+   +----------------+-----------+---------------+---------------+-----------+-----------+-------------------+-----------------------+---------------+-------+
 */
 
 import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/gogohigher/xzrpc/compressor"
 	"github.com/gogohigher/xzrpc/internal/xzbufio"
 	"github.com/gogohigher/xzrpc/protocol"
 	"github.com/gogohigher/xzrpc/traffic"
@@ -59,7 +68,7 @@ func (raw *rawProtocol) GetContent() *protocol.Content {
 	return c
 }
 
-// 封包，即将message写入connection
+// Pack 封包，即将message写入connection
 func (raw *rawProtocol) Pack(msg traffic.Message) error {
 	// TODO 使用sync.Pool进行优化；缓冲区大小取什么值比较好？
 	//buf := make([]byte, 0, 4096)
@@ -94,10 +103,12 @@ func (raw *rawProtocol) Pack(msg traffic.Message) error {
 	return nil
 }
 
-// TODO 处理error
+// WriteHeader TODO 处理error
 func (raw *rawProtocol) WriteHeader(buf *xzbufio.Writer, msg traffic.Message) error {
 	// 协议Id | 占1个字节
 	_ = buf.WriteByte(raw.GetContent().Id)
+	// Compressor | 占1个字节
+	_ = buf.WriteByte(msg.Compressor())
 	// 消息序列号长度 | 占1个字节
 	seqStr := strconv.FormatInt(int64(msg.GetSeq()), 36)
 	_ = buf.WriteByte(byte(len(seqStr)))
@@ -125,7 +136,24 @@ func (raw *rawProtocol) WriteBody(buf *xzbufio.Writer, msg traffic.Message) erro
 		log.Println("raw-protocol | WriteBody | failed to MarshalBody: ", err)
 		return err
 	}
-	_, err = buf.Write(bytes)
+
+	fmt.Println("raw-protocol | length of body before zip: ", len(bytes))
+
+	var zipBytes = make([]byte, 0)
+	c, ok := compressor.Compressors[msg.Compressor()]
+	if !ok {
+		log.Printf("raw-protocol | not found %d compressor\n", msg.Compressor())
+	} else {
+		zipBytes, err = c.Zip(bytes)
+		if err != nil {
+			zipBytes = bytes
+			log.Println("raw-protocol | failed to Zip: ", err)
+		}
+	}
+
+	fmt.Println("raw-protocol | length of body after zip: ", len(zipBytes))
+
+	_, err = buf.Write(zipBytes)
 	if err != nil {
 		log.Println("raw-protocol | WriteBody | failed to Write to buf: ", err)
 		return err
@@ -165,15 +193,31 @@ func (raw *rawProtocol) UnPack(msg traffic.Message, f func(header traffic.Header
 		log.Println("raw-protocol | UnPack | failed to ReadHeader: ", err)
 		return err
 	}
+	// 这里解决body的类型
 	if f != nil {
 		if err := f(msg.Header()); err != nil {
 			return err
 		}
-
 	}
-	// TODO 这里需要处理body的类型
-	// 外部解决
-	if err := raw.ReadBody(data, msg); err != nil {
+
+	var unzipBytes = make([]byte, 0)
+	compressType := msg.Compressor()
+	c, ok := compressor.Compressors[compressType]
+	if !ok {
+		log.Printf("raw-protocol | UnPack | not support %d compressor\n", compressType)
+	} else {
+		unzipBytes, err = c.UnZip(data)
+		if err != nil {
+			//if err != io.ErrUnexpectedEOF {
+			//	unzipBytes = data
+			//	log.Println("raw-protocol | UnPack | failed to unzip: ", err)
+			//}
+			unzipBytes = data
+			log.Println("raw-protocol | UnPack | failed to unzip: ", err)
+		}
+	}
+
+	if err := raw.ReadBody(unzipBytes, msg); err != nil {
 		log.Println("raw-protocol | UnPack | failed to ReadBody: ", err)
 		return err
 	}
@@ -186,9 +230,14 @@ func (raw *rawProtocol) ReadHeader(data []byte, msg traffic.Message) ([]byte, er
 
 	// 协议Id
 	_ = data[0]
+
+	// 压缩算法
+	compressType := data[1]
+	msg.SetCompressor(compressType)
+
 	// 消息序列号长度
-	seqLen := data[1]
-	data = data[2:]
+	seqLen := data[2]
+	data = data[3:]
 	// 序列号内容
 	ss := string(data[:seqLen])
 	seqNum, err := strconv.ParseInt(ss, 36, 32)

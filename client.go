@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gogohigher/xzrpc/codec2"
+	"github.com/gogohigher/xzrpc/compressor"
 	"github.com/gogohigher/xzrpc/internal/const"
 	"github.com/gogohigher/xzrpc/protocol/raw"
 	"github.com/gogohigher/xzrpc/traffic"
@@ -274,6 +275,7 @@ func (c *Client) send(call *Call) {
 	msg.SetBody(call.Args)
 	msg.SetAction(traffic.CALL)
 	msg.SetCodec(codec2.JSON_CODEC)
+	msg.SetCompressor(compressor.Gzip)
 
 	err = rawProtocol.Pack(msg)
 

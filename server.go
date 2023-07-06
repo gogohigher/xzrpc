@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/gogohigher/xzrpc/codec"
 	"github.com/gogohigher/xzrpc/codec2"
+	"github.com/gogohigher/xzrpc/compressor"
 	"github.com/gogohigher/xzrpc/internal/const"
 	"github.com/gogohigher/xzrpc/protocol"
 	"github.com/gogohigher/xzrpc/protocol/raw"
@@ -205,6 +206,7 @@ func (s *Server) sendResp(cc codec.Codec, header traffic.Header, body interface{
 	msg.SetBody(body)
 	msg.SetAction(traffic.CALL) // TODO 这里要改成REPLY吗？需要定义一下CALL、REPLY等等
 	msg.SetCodec(codec2.JSON_CODEC)
+	msg.SetCompressor(compressor.Gzip)
 
 	if err := rawProtocol.Pack(msg); err != nil {
 		log.Println("failed to write resp: ", err)

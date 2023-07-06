@@ -1,0 +1,47 @@
+package compressor
+
+import (
+	"bytes"
+	"compress/gzip"
+	"io"
+)
+
+var _ Compressor = (*GzipCompressor)(nil)
+
+type GzipCompressor struct {
+}
+
+func (c *GzipCompressor) Zip(data []byte) ([]byte, error) {
+	var buf bytes.Buffer
+	w := gzip.NewWriter(&buf)
+	defer func() {
+		_ = w.Close()
+	}()
+	if _, err := w.Write(data); err != nil {
+		return nil, err
+	}
+	if err := w.Flush(); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+func (c *GzipCompressor) UnZip(data []byte) ([]byte, error) {
+	r, err := gzip.NewReader(bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		_ = r.Close()
+	}()
+	// 内部做了处理，err == EOF时，err = nil
+	res, err := io.ReadAll(r)
+	if err != nil {
+		// 需要排除ErrUnexpectedEOF错误
+		if err != io.ErrUnexpectedEOF {
+			return nil, err
+		}
+	}
+	return res, nil
+}

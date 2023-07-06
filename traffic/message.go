@@ -22,13 +22,16 @@ type Message interface {
 	Header() Header
 	SetBody(b interface{})
 	Body() any
+	SetCompressor(compressType byte)
+	Compressor() byte
 }
 
 type message struct {
-	header Header
-	body   interface{}
-	action byte
-	codec  byte
+	header       Header
+	body         interface{}
+	action       byte
+	codec        byte
+	compressType byte // 压缩算法
 }
 
 func NewMessage() Message {
@@ -70,9 +73,9 @@ func (m *message) MarshalBody() ([]byte, error) {
 
 func (m *message) UnMarshalBody(b []byte) error {
 	// TODO 暂时将body定位string类型 !!! 单元测试的时候，没有注册方法
-	if m.body == nil {
-		m.body = new(string)
-	}
+	//if m.body == nil {
+	//	m.body = new(string)
+	//}
 	switch m.codec {
 	case codec22.JSON_CODEC:
 		return codec22.JsonUnmarshal(b, m.body)
@@ -95,6 +98,14 @@ func (m *message) SetBody(b interface{}) {
 
 func (m *message) Body() any {
 	return m.body
+}
+
+func (m *message) SetCompressor(compressType byte) {
+	m.compressType = compressType
+}
+
+func (m *message) Compressor() byte {
+	return m.compressType
 }
 
 // Message --- end ---

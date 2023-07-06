@@ -28,7 +28,7 @@ func NewGobProtocol(rw io.ReadWriteCloser) protocol.Protocol {
 	}
 }
 
-// 协议内容
+// GetContent 协议内容
 func (gp *gobProtocol) GetContent() *protocol.Content {
 	c := &protocol.Content{
 		Id:   2,
@@ -37,7 +37,7 @@ func (gp *gobProtocol) GetContent() *protocol.Content {
 	return c
 }
 
-// 封包，即将message写入connection
+// Pack 封包，即将message写入connection
 func (gp *gobProtocol) Pack(msg traffic.Message) error {
 	var err error
 	defer func() {
@@ -57,7 +57,7 @@ func (gp *gobProtocol) Pack(msg traffic.Message) error {
 	return nil
 }
 
-// 拆包，从connection中读取消息，读到message中
+// UnPack 拆包，从connection中读取消息，读到message中
 func (gp *gobProtocol) UnPack(msg traffic.Message, f func(header traffic.Header) error) error {
 	if err := gp.decoder.Decode(msg.Header()); err != nil {
 		return err
