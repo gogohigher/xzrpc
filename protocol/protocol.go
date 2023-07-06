@@ -1,6 +1,6 @@
 package protocol
 
-import "github.com/gogohigher/xzrpc/pkg/traffic"
+import "github.com/gogohigher/xzrpc/traffic"
 
 // Protocol 协议接口
 type Protocol interface {

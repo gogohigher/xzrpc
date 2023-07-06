@@ -4,8 +4,8 @@ import (
 	"bufio"
 	"encoding/gob"
 	"fmt"
-	"github.com/gogohigher/xzrpc/pkg/protocol"
-	"github.com/gogohigher/xzrpc/pkg/traffic"
+	"github.com/gogohigher/xzrpc/protocol"
+	"github.com/gogohigher/xzrpc/traffic"
 	"io"
 )
 

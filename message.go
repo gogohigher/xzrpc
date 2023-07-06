@@ -1,7 +1,7 @@
 package xzrpc
 
 //
-//import "github.com/gogohigher/xzrpc/pkg/traffic"
+//import "github.com/gogohigher/xzrpc/traffic"
 //
 //var _ Message = (*message)(nil)
 //var _ traffic.Header = (*header)(nil)

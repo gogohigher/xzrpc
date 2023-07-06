@@ -1,7 +1,7 @@
 package codec
 
 import (
-	"github.com/gogohigher/xzrpc/pkg/traffic"
+	"github.com/gogohigher/xzrpc/traffic"
 	"io"
 )
 

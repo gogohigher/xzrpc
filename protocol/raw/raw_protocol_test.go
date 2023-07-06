@@ -1,8 +1,8 @@
 package raw
 
 import (
-	"github.com/gogohigher/xzrpc/pkg/codec2"
-	"github.com/gogohigher/xzrpc/pkg/traffic"
+	"github.com/gogohigher/xzrpc/codec2"
+	"github.com/gogohigher/xzrpc/traffic"
 	"log"
 	"net"
 	"testing"
