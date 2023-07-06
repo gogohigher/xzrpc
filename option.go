@@ -17,7 +17,7 @@ type Option struct {
 }
 
 var DefaultOption = Option{
-	Magic:          Magic,
-	CodecType:      codec.GobType,
+	//Magic:          Magic,
+	//CodecType:      codec.GobType,
 	ConnectTimeOut: 0,
 }

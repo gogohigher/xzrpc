@@ -1,7 +1,7 @@
 package xzrpc
 
 import (
-	"github.com/gogohigher/xzrpc/pkg/utils"
+	"github.com/gogohigher/xzrpc/internal/utils"
 	"go/ast"
 	"log"
 	"reflect"

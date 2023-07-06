@@ -1,8 +1,8 @@
 package raw
 
 import (
-	"github.com/gogohigher/xzrpc/pkg/codec2"
-	"github.com/gogohigher/xzrpc/pkg/traffic"
+	"github.com/gogohigher/xzrpc/codec2"
+	"github.com/gogohigher/xzrpc/traffic"
 	"log"
 	"net"
 	"testing"
@@ -56,7 +56,7 @@ func startServer() {
 	rawProtocol := NewRawProtocol(conn)
 
 	msg := traffic.NewMessage()
-	err = rawProtocol.UnPack(msg)
+	err = rawProtocol.UnPack(msg, nil)
 	if err != nil {
 		log.Println("TestPack UnPack err: ", err)
 		return

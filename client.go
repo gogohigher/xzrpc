@@ -3,14 +3,13 @@ package xzrpc
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/gogohigher/xzrpc/codec"
-	"github.com/gogohigher/xzrpc/pkg/codec2"
-	_const "github.com/gogohigher/xzrpc/pkg/const"
-	"github.com/gogohigher/xzrpc/pkg/traffic"
+	"github.com/gogohigher/xzrpc/codec2"
+	"github.com/gogohigher/xzrpc/compressor"
+	"github.com/gogohigher/xzrpc/internal/const"
 	"github.com/gogohigher/xzrpc/protocol/raw"
+	"github.com/gogohigher/xzrpc/traffic"
 	"io"
 	"log"
 	"net"
@@ -34,7 +33,7 @@ type Call struct {
 
 // Client xzrpc client
 type Client struct {
-	cc     codec.Codec // @xz 这个可以删除
+	//cc     codec.Codec // @xz 这个可以删除
 	option *Option
 	//header    traffic.Header
 	seq       uint64
@@ -59,22 +58,24 @@ type newClientFunc func(conn net.Conn, option *Option) (*Client, error)
 // 2. 创建goroutine调用receive接收响应
 func NewClient(conn net.Conn, option *Option) (*Client, error) {
 	// 1. 根据codecType，找到对应的CodeC构造器
-	f, ok := codec.NewCodecFuncMap[option.CodecType]
-	if !ok {
-		_ = conn.Close()
-		return nil, fmt.Errorf("%s is invalid codec type\n", option.CodecType)
-	}
+	//f, ok := codec.NewCodecFuncMap[option.CodecType]
+	//if !ok {
+	//	_ = conn.Close()
+	//	return nil, fmt.Errorf("%s is invalid codec type\n", option.CodecType)
+	//}
+
+	// 不再需要提前发，将编解码协议都写到header中
 	// 2. 发送协议给服务端
-	err := json.NewEncoder(conn).Encode(option)
-	if err != nil {
-		_ = conn.Close()
-		return nil, err
-	}
+	//err := json.NewEncoder(conn).Encode(option)
+	//if err != nil {
+	//	_ = conn.Close()
+	//	return nil, err
+	//}
 
 	// 3. 创建客户端
 	client := &Client{
-		seq:       1, // TODO 暂时写死
-		cc:        f(conn),
+		seq: 1, // TODO 暂时写死
+		//cc:        f(conn),
 		option:    option,
 		taskQueue: make(map[uint64]*Call),
 		conn:      conn,
@@ -258,28 +259,23 @@ func (c *Client) send(call *Call) {
 		return
 	}
 
-	// prepare req header
-	//c.header.ServiceMethod = call.ServiceMethod
-	//c.header.Seq = seq
-	//c.header.Error = ""
-
-	//c.header = traffic.NewHeader(call.ServiceMethod, int32(seq))
-
 	h := traffic.NewHeader(call.ServiceMethod, int32(seq))
 
 	rawProtocol := raw.NewRawProtocol(c.conn)
 	// 构造消息
-	msg := traffic.NewMessage()
+	msg := traffic.MessagePool.Get().(traffic.Message)
+	defer func() {
+		msg.ResetMessage()
+		traffic.MessagePool.Put(msg)
+	}()
+
 	msg.SetHeader(h)
 	msg.SetBody(call.Args)
 	msg.SetAction(traffic.CALL)
 	msg.SetCodec(codec2.JSON_CODEC)
+	msg.SetCompressor(compressor.Gzip)
 
 	err = rawProtocol.Pack(msg)
-
-	// send req with encode
-	//err = c.cc.Write(c.header, call.Args)
-
 	if err != nil {
 		_ = c.removeCall(seq)
 		// @xz removeCall会为空吗？
@@ -372,7 +368,8 @@ func (c *Client) Close() error {
 		return errors.New("connection has closed")
 	}
 	c.closed = true
-	return c.cc.Close()
+	//return c.cc.Close()
+	return nil
 }
 
 func (c *Client) CheckAvailable() bool {

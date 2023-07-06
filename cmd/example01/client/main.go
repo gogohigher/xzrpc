@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/gogohigher/xzrpc"
 	"github.com/gogohigher/xzrpc/codec"
-	"github.com/gogohigher/xzrpc/pkg/traffic"
+	"github.com/gogohigher/xzrpc/traffic"
 	"log"
 	"net"
 	"time"
