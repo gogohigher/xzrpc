@@ -1,8 +1,10 @@
 package xzrpc
 
 import (
+	_const "github.com/gogohigher/xzrpc/pkg/const"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -46,7 +48,17 @@ func (rd *RegistryDiscovery) Refresh() error {
 		// 没有到时间，不需要更新
 		return nil
 	}
-	resp, err := http.Get(rd.registry)
+	//resp, err := http.Get(rd.registry)
+
+	data := url.Values{}
+	data.Set("env", _const.TEST_ENV)
+	data.Set("appid", _const.TEST_APPID)
+	client := &http.Client{}
+	registry := "http://127.0.0.1:9999/_xzrpc_/get" // TODO 这个是不是应该封装一下
+	request, _ := http.NewRequest("POST", registry, strings.NewReader(data.Encode()))
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	resp, err := client.Do(request)
+
 	if err != nil {
 		log.Println("xzrpc registry | refresh err: ", err)
 		return err

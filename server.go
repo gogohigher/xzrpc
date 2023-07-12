@@ -40,6 +40,7 @@ func (s *Server) Accept(listener net.Listener) {
 			continue
 		}
 		// TODO 要不要做一些前置检查
+		// TODO goroutine池
 		go s.HandleConn(conn)
 	}
 }
