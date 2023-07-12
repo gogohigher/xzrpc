@@ -2,6 +2,7 @@ package registry
 
 import (
 	"fmt"
+	_const "github.com/gogohigher/xzrpc/pkg/const"
 	"log"
 	"net/http"
 	"strings"
@@ -14,20 +15,24 @@ const (
 	defaultTimeout = time.Minute * 5
 )
 
+var GlobalRegistry *Registry
+
 // Registry 注册中心
 type Registry struct {
 	//servers map[string]*ServerItem
 	apps    map[string]*App // <appid-env, App>
 	lock    sync.RWMutex
-	timeout time.Duration
+	Timeout time.Duration
 }
 
 func NewRegistry(timeout time.Duration) *Registry {
-	return &Registry{
+	r := &Registry{
 		//servers: make(map[string]*ServerItem),
 		apps:    make(map[string]*App),
-		timeout: timeout,
+		Timeout: timeout,
 	}
+	GlobalRegistry = r
+	return r
 }
 
 // Register 注册服务
@@ -110,12 +115,11 @@ func (r *Registry) getAliveServers() []string {
 // 简单实现
 // GET：返回可用的服务列表
 // POST：添加服务实例或者发送心跳
+// @xz 废弃掉，待删除
 func (r *Registry) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	switch req.Method {
 	case "GET":
-
-		// TODO 后续抽出来
-		servers, err := r.GetServer(TEST_APPID, TEST_ENV)
+		servers, err := r.GetServer(_const.TEST_APPID, _const.TEST_ENV)
 		if err != nil {
 			log.Println("registry | ServeHTTP | failed to GetServer: ", err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -124,17 +128,14 @@ func (r *Registry) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		aliveServers := make([]string, 0)
 
 		for _, server := range servers {
-			if r.timeout == 0 || time.Duration(time.Now().Unix()-server.regTimestamp) <= r.timeout {
+			if r.Timeout == 0 || time.Duration(time.Now().Unix()-server.RegTimestamp) <= r.Timeout {
 				aliveServers = append(aliveServers, server.Address)
 			} else {
-				// TODO 这里不要删除，感觉不应该在这里处理
 				// 1. 删除app中的items
 				// 2. 如果app中的items为空，删除registry中的apps
 				//delete(r.servers, addr)
 			}
 		}
-
-		//w.Header().Set("X-Xzrpc-Servers", strings.Join(r.getAliveServers(), ","))
 		w.Header().Set("X-Xzrpc-Servers", strings.Join(aliveServers, ","))
 
 	case "POST":
@@ -143,15 +144,14 @@ func (r *Registry) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		// TODO 这个注册正在优化
 		//r.putServer(addr)
 
 		item := &ServerItem{
 			Address:      addr,
-			Env:          TEST_ENV,
-			AppId:        TEST_APPID,
-			Hostname:     TEST_HOST_NAME,
-			regTimestamp: time.Now().Unix(),
+			Env:          _const.TEST_ENV,
+			AppId:        _const.TEST_APPID,
+			Hostname:     _const.TEST_HOST_NAME,
+			RegTimestamp: time.Now().Unix(),
 		}
 		_, err := r.Register(item)
 		if err != nil {

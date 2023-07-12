@@ -1,4 +1,4 @@
-package registry
+package _const
 
 // 测试数据
 const (

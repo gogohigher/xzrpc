@@ -2,3 +2,12 @@
 
 
 A lightweight RPC framework that implements load balancing, service registration, and other functionalities.
+
+
+### feature
+1. 自定义编解码raw-protocol，支持多个编解码
+2. 支持数据压缩
+3. 注册中心
+
+### TODO
+- [x] 优化服务注册与服务发现
