@@ -15,8 +15,6 @@ func main() {
 }
 
 func call(registry string) {
-	//d := xzrpc.NewDefaultDiscovery([]string{"tcp@" + addr1, "tcp@" + addr2})
-
 	d := xzrpc.NewRegistryDiscovery(registry, 0)
 
 	client := xzrpc.NewXZClient(d, xzrpc.RandomStrategy, nil)
@@ -25,7 +23,7 @@ func call(registry string) {
 	}()
 
 	var wg sync.WaitGroup
-	for i := 1; i < 100; i++ { // TODO 暂时只调用一次
+	for i := 1; i < 6; i++ {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
@@ -41,7 +39,6 @@ func call(registry string) {
 }
 
 func broadcast(registry string) {
-	//d := xzrpc.NewDefaultDiscovery([]string{"tcp@" + addr1, "tcp@" + addr2})
 	d := xzrpc.NewRegistryDiscovery(registry, 0)
 
 	client := xzrpc.NewXZClient(d, xzrpc.RandomStrategy, nil)
