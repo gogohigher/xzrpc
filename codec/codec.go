@@ -6,6 +6,7 @@ import (
 )
 
 // Codec 编解码器
+// @废弃
 type Codec interface {
 	io.Closer
 	ReadHeader(header traffic.Header) error
@@ -25,6 +26,6 @@ type NewCodecFunc func(closer io.ReadWriteCloser) Codec
 var NewCodecFuncMap map[Type]NewCodecFunc
 
 func init() {
-	//NewCodecFuncMap = make(map[Type]NewCodecFunc)
-	//NewCodecFuncMap[GobType] = NewGobCodec
+	NewCodecFuncMap = make(map[Type]NewCodecFunc)
+	NewCodecFuncMap[GobType] = NewGobCodec
 }

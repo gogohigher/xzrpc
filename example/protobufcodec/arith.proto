@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package message;
+option go_package="/message";
+
+service ArithService {
+
+  rpc Add(ArithRequest) returns (ArithResponse);
+
+  rpc Sub(ArithRequest) returns (ArithResponse);
+
+  rpc Mul(ArithRequest) returns (ArithResponse);
+
+  rpc Div(ArithRequest) returns (ArithResponse);
+}
+
+message ArithRequest {
+  int32 a = 1;
+  int32 b = 2;
+}
+
+message ArithResponse {
+  int32 c = 1;
+}

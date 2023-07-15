@@ -1,8 +1,9 @@
 package codec2
 
 const (
-	xxx        = iota
-	JSON_CODEC = iota
+	xxx = iota
+	JSON_CODEC
+	PROTO_BUF_CODEC
 )
 
 // Codec2 新的Codec

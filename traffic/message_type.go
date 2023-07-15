@@ -1,8 +1,8 @@
 package traffic
 
 const (
-	xxx  = iota
-	CALL = iota
+	xxx = iota
+	CALL
 	REPLAY
 	PUSH
 	BROADCAST
