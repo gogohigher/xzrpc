@@ -271,8 +271,9 @@ func (c *Client) send(call *Call) {
 
 	msg.SetHeader(h)
 	msg.SetBody(call.Args)
+	// TODO 待优化，下面几个参数，哪些需要外部传入，哪些可以固定住
 	msg.SetAction(traffic.CALL)
-	msg.SetCodec(codec2.JSON_CODEC)
+	msg.SetCodec(codec2.PROTO_BUF_CODEC)
 	msg.SetCompressor(compressor.Gzip)
 
 	err = rawProtocol.Pack(msg)

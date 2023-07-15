@@ -77,19 +77,19 @@ func (m *message) MarshalBody() ([]byte, error) {
 	switch m.codec {
 	case codec22.JSON_CODEC:
 		return codec22.JsonMarshal(m.body)
+	case codec22.PROTO_BUF_CODEC:
+		return codec22.ProtoBufMarshal(m.body)
 	default:
 		return nil, fmt.Errorf("not support %d codec", m.codec)
 	}
 }
 
 func (m *message) UnMarshalBody(b []byte) error {
-	// TODO 暂时将body定位string类型 !!! 单元测试的时候，没有注册方法
-	//if m.body == nil {
-	//	m.body = new(string)
-	//}
 	switch m.codec {
 	case codec22.JSON_CODEC:
 		return codec22.JsonUnmarshal(b, m.body)
+	case codec22.PROTO_BUF_CODEC:
+		return codec22.ProtoBufUnmarshal(b, m.body)
 	default:
 		return fmt.Errorf("not support %d codec", m.codec)
 	}

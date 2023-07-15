@@ -3,9 +3,6 @@ package xzrpc
 import (
 	"errors"
 	"fmt"
-	"github.com/gogohigher/xzrpc/codec"
-	"github.com/gogohigher/xzrpc/codec2"
-	"github.com/gogohigher/xzrpc/compressor"
 	"github.com/gogohigher/xzrpc/internal/const"
 	"github.com/gogohigher/xzrpc/protocol"
 	"github.com/gogohigher/xzrpc/protocol/raw"
@@ -68,33 +65,32 @@ func (s *Server) HandleConn(conn io.ReadWriteCloser) {
 	//}
 
 	rawProtocol := raw.NewRawProtocol(conn)
-	s.HandleCodec(nil, rawProtocol)
+	s.HandleCodec(rawProtocol)
 }
 
 var EmptyData = struct{}{}
 
 // HandleCodec 根据编解码器处理数据
 // 并发处理请求，有序返回数据
-func (s *Server) HandleCodec(cc codec.Codec, rawProtocol protocol.Protocol) {
+func (s *Server) HandleCodec(rawProtocol protocol.Protocol) {
 	sending := new(sync.Mutex)
 	wg := new(sync.WaitGroup)
 	for {
-		req, err := s.readRequest(cc, rawProtocol)
+		req, err := s.readRequest(rawProtocol)
 		if err != nil {
 			if req == nil {
 				break
 			}
 
 			req.message.Header().SetErr(err.Error())
-			s.sendResp(cc, req.message.Header(), EmptyData, sending, rawProtocol)
+			s.sendResp(req.message, EmptyData, sending, rawProtocol)
 			continue
 		}
 		// 并发处理
 		wg.Add(1)
-		go s.handleRequest(cc, req, sending, wg, rawProtocol)
+		go s.handleRequest(req, sending, wg, rawProtocol)
 	}
 	wg.Wait()
-	//_ = cc.Close()
 }
 
 type request struct {
@@ -105,7 +101,7 @@ type request struct {
 	mType *methodType
 }
 
-func (s *Server) readRequest(cc codec.Codec, rawProtocol protocol.Protocol) (*request, error) {
+func (s *Server) readRequest(rawProtocol protocol.Protocol) (*request, error) {
 	// 1. read header
 	req := &request{}
 
@@ -169,7 +165,7 @@ func (s *Server) readRequest(cc codec.Codec, rawProtocol protocol.Protocol) (*re
 
 // TODO wg是不是可以绑定到Server中，作为它的属性
 // TODO 服务端处理超时
-func (s *Server) handleRequest(cc codec.Codec, req *request, sending *sync.Mutex, wg *sync.WaitGroup, rawProtocol protocol.Protocol) {
+func (s *Server) handleRequest(req *request, sending *sync.Mutex, wg *sync.WaitGroup, rawProtocol protocol.Protocol) {
 	defer wg.Done()
 
 	//log.Println("server.handleRequest | ", req.header, req.args.Elem())
@@ -181,15 +177,15 @@ func (s *Server) handleRequest(cc codec.Codec, req *request, sending *sync.Mutex
 		req.message.Header().SetErr(err.Error())
 
 		// 发送一个空结构体
-		s.sendResp(cc, req.message.Header(), struct{}{}, sending, rawProtocol)
+		s.sendResp(req.message, struct{}{}, sending, rawProtocol)
 		return
 	}
 
-	s.sendResp(cc, req.message.Header(), req.reply.Interface(), sending, rawProtocol)
+	s.sendResp(req.message, req.reply.Interface(), sending, rawProtocol)
 
 }
 
-func (s *Server) sendResp(cc codec.Codec, header traffic.Header, body interface{}, sending *sync.Mutex, rawProtocol protocol.Protocol) {
+func (s *Server) sendResp(in traffic.Message, body interface{}, sending *sync.Mutex, rawProtocol protocol.Protocol) {
 	// 有序发送
 	sending.Lock()
 	defer sending.Unlock()
@@ -200,11 +196,12 @@ func (s *Server) sendResp(cc codec.Codec, header traffic.Header, body interface{
 		traffic.MessagePool.Put(msg)
 	}()
 
-	msg.SetHeader(header)
+	msg.SetHeader(in.Header())
 	msg.SetBody(body)
-	msg.SetAction(traffic.CALL) // TODO 这里要改成REPLY吗？需要定义一下CALL、REPLY等等
-	msg.SetCodec(codec2.JSON_CODEC)
-	msg.SetCompressor(compressor.Gzip)
+	msg.SetAction(in.Action()) // TODO 这里要改成REPLY吗？需要定义一下CALL、REPLY等等
+	msg.SetCodec(in.Codec())
+	msg.SetCompressor(in.Compressor())
+	log.Println(">>> 服务端 in.Action: ", in.Action(), ", in.Codec: ", in.Codec(), ", in.Compressor: ", in.Compressor())
 
 	if err := rawProtocol.Pack(msg); err != nil {
 		log.Println("failed to write resp: ", err)
