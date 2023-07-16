@@ -31,9 +31,8 @@ func call(registry string) {
 				A: i,
 				B: i + 1,
 			}
-			arith(context.Background(), client, "call", "Arith.Multiply", args)
+			arith(context.Background(), client, "call", "Arith.Multiply", args, i)
 		}(i)
-		time.Sleep(time.Second)
 	}
 	wg.Wait()
 }
@@ -55,17 +54,17 @@ func broadcast(registry string) {
 				A: i,
 				B: i + 1,
 			}
-			arith(context.Background(), client, "broadcast", "Arith.Multiply", args)
+			arith(context.Background(), client, "broadcast", "Arith.Multiply", args, i)
 
 			ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
-			arith(ctx, client, "broadcast", "Arith.MultiplySleep", args)
+			arith(ctx, client, "broadcast", "Arith.MultiplySleep", args, i)
 
 		}(i)
 	}
 	wg.Wait()
 }
 
-func arith(ctx context.Context, xzc *xzrpc.XZClient, action, serviceMethod string, args *cmd.Args) {
+func arith(ctx context.Context, xzc *xzrpc.XZClient, action, serviceMethod string, args *cmd.Args, i int) {
 	var reply int
 	var err error
 
@@ -76,9 +75,8 @@ func arith(ctx context.Context, xzc *xzrpc.XZClient, action, serviceMethod strin
 		err = xzc.Broadcast(ctx, serviceMethod, args, &reply)
 	}
 	if err != nil {
-		log.Printf("%s %s error: %v", action, serviceMethod, err)
+		log.Printf("[No.%d] %s %s error: %v", i, action, serviceMethod, err)
 	} else {
-		log.Printf("%s %s success: %d * %d = %d", action, serviceMethod, args.A, args.B, reply)
+		log.Printf("[No.%d] %s %s success: %d * %d = %d", i, action, serviceMethod, args.A, args.B, reply)
 	}
-
 }

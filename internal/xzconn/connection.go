@@ -20,5 +20,5 @@ func NewConnection(connId uint32, netConn *net.Conn) *Connection {
 }
 
 //func (xzConn *Connection) Start() {
-//	xzConn.Server.HandleConn(*xzConn.NetConn)
+//	xzConn.Server.HandleConnection(*xzConn.NetConn)
 //}
