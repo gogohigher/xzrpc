@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gogohigher/xzrpc/internal/const"
+	"github.com/gogohigher/xzrpc/internal/xzconn"
+	"github.com/gogohigher/xzrpc/pkg/pool"
 	"github.com/gogohigher/xzrpc/protocol"
 	"github.com/gogohigher/xzrpc/protocol/raw"
 	"github.com/gogohigher/xzrpc/traffic"
@@ -22,50 +24,47 @@ import (
 
 type Server struct {
 	serviceMap sync.Map
+	workerPool *pool.WorkerPool
 }
 
 func NewServer() *Server {
-	return &Server{}
+	s := &Server{
+		workerPool: pool.NewDefaultWorkerPool(),
+	}
+	// @xz 是否应该放在这里？再考虑一下
+	s.Start()
+	return s
+}
+
+func (s *Server) Start() {
+	s.workerPool.Start()
 }
 
 // Accept TODO-这里可以优化的，看下xzlink
+// TODO 连接这套也上了
 func (s *Server) Accept(listener net.Listener) {
+	var connID uint32 = 0
+
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
 			fmt.Println("failed to listener accept: ", err)
 			continue
 		}
-		// TODO 要不要做一些前置检查
-		// TODO goroutine池
-		go s.HandleConn(conn)
+		xzConn := xzconn.NewConnection(connID, &conn)
+		connID++
+		s.HandleConnection(xzConn)
 	}
 }
 
-// HandleConn 首先使用 json.NewDecoder 反序列化得到 Option 实例，检查 MagicNumber 和 CodeType 的值是否正确。
+// HandleConnection 首先使用 json.NewDecoder 反序列化得到 Option 实例，检查 MagicNumber 和 CodeType 的值是否正确。
 // 然后根据 CodeType 得到对应的消息编解码器，接下来的处理交给 serverCodec。
-func (s *Server) HandleConn(conn io.ReadWriteCloser) {
-	//var option Option
-	//err := json.NewDecoder(conn).Decode(&option)
-	//if err != nil {
-	//	log.Println("failed to decode json: ", err)
-	//	return
-	//}
-	//log.Printf("HandleConn option: %+v\n", option)
-
-	//if option.Magic != Magic {
-	//	log.Printf("valid magic number: %v\n", option.Magic)
-	//	return
-	//}
-
-	//codecFunc, ok := codec.NewCodecFuncMap[option.CodecType]
-	//if !ok {
-	//	log.Printf("failed to find %v CodecType\n", option.CodecType)
-	//	return
-	//}
-
-	rawProtocol := raw.NewRawProtocol(conn)
-	s.HandleCodec(rawProtocol)
+func (s *Server) HandleConnection(xzConn *xzconn.Connection) {
+	workerId := xzConn.ConnID % uint32(s.workerPool.PoolSize)
+	s.workerPool.Workers[workerId].Enqueue(func() {
+		rawProtocol := raw.NewRawProtocol(*xzConn.NetConn)
+		s.HandleCodec(rawProtocol)
+	})
 }
 
 var EmptyData = struct{}{}
@@ -130,37 +129,6 @@ func (s *Server) readRequest(rawProtocol protocol.Protocol) (*request, error) {
 		return nil, err
 	}
 	return req, err
-
-	//if err := cc.ReadHeader(h); err != nil {
-	//	fmt.Println("failed to ReadHeader: ", err)
-	//	return nil, err
-	//}
-	//req := &request{header: h}
-	////req.args = reflect.New(reflect.TypeOf(""))
-	//srv, mType, err := s.findService(h.GetServiceMethod())
-	//if err != nil {
-	//	log.Println("xzrpc server | readRequest | failed to findService: ", err)
-	//	return req, err
-	//}
-	//req.srv = srv
-	//req.mType = mType
-	//
-	//req.args = req.mType.newArgValue()
-	//req.reply = req.mType.newReplyValue()
-	//
-	//// @xz req.args可能是值类型，也可能是指针类型
-	//args := req.args.Interface()
-	//if req.args.Kind() != reflect.Pointer {
-	//	args = req.args.Addr().Interface()
-	//}
-	//
-	//// 2. read body，ReadBody的参数必须是指针类型，因此上述需要对req.args做判断
-	//if err := cc.ReadBody(args); err != nil {
-	//	log.Println("xzrpc server | readRequest | failed to ReadBody: ", err)
-	//	return req, err
-	//}
-	//// 3. header成功，但是body失败了，也返回
-	//return req, nil
 }
 
 // TODO wg是不是可以绑定到Server中，作为它的属性
@@ -264,7 +232,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, _ = io.WriteString(conn, "HTTP/1.0 "+_const.CONNECTED+"\n\n")
-	s.HandleConn(conn)
+
+	xzConn := xzconn.NewConnection(0, &conn)
+	s.HandleConnection(xzConn)
 }
 
 func (s *Server) HandleHTTP() {
